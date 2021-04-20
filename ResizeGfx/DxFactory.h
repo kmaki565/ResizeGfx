@@ -13,9 +13,9 @@ private:
     DUPL_RETURN MakeRTV();
     void SetViewPort(UINT Width, UINT Height);
     DUPL_RETURN InitShaders();
+    DUPL_RETURN DrawFrame();
 
     ID3D11Device* m_Device;
-    IDXGIFactory2* m_Factory;
     ID3D11DeviceContext* m_DeviceContext;
     ID3D11RenderTargetView* m_RTV;
     ID3D11SamplerState* m_SamplerLinear;

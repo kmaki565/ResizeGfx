@@ -1,8 +1,8 @@
 #include "DxFactory.h"
+using namespace DirectX;
 
 DxFactory::DxFactory() : 
 	m_Device(nullptr),
-	m_Factory(nullptr),
 	m_DeviceContext(nullptr),
 	m_RTV(nullptr),
 	m_SamplerLinear(nullptr),
@@ -54,31 +54,6 @@ DUPL_RETURN DxFactory::Init()
             break;
         }
     }
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
-
-    // Get DXGI factory
-    IDXGIDevice* DxgiDevice = nullptr;
-    hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&DxgiDevice));
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
-
-    IDXGIAdapter* DxgiAdapter = nullptr;
-    hr = DxgiDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&DxgiAdapter));
-    DxgiDevice->Release();
-    DxgiDevice = nullptr;
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
-
-    hr = DxgiAdapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&m_Factory));
-    DxgiAdapter->Release();
-    DxgiAdapter = nullptr;
     if (FAILED(hr))
     {
         return DUPL_RETURN_ERROR_UNEXPECTED;
@@ -141,6 +116,7 @@ DUPL_RETURN DxFactory::Init()
         return Return;
     }
 
+    Return = DrawFrame();
 
     return Return;
 
@@ -158,21 +134,22 @@ HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_
 
     RECT destRect = sourceRect;
 
-    D3D11_TEXTURE2D_DESC destFrameDesc;
-    destFrameDesc.Width = destRect.right - destRect.left;
-    destFrameDesc.Height = destRect.bottom - destRect.top;
-    destFrameDesc.Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM;
-    destFrameDesc.ArraySize = 1;
-    destFrameDesc.BindFlags = D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
-    destFrameDesc.MiscFlags = 0;
-    destFrameDesc.SampleDesc.Count = 1;
-    destFrameDesc.SampleDesc.Quality = 0;
-    destFrameDesc.MipLevels = 1;
-    destFrameDesc.CPUAccessFlags = 0;
-    destFrameDesc.Usage = D3D11_USAGE_DEFAULT;
+    // Create shared texture for all duplication threads to draw into
+    D3D11_TEXTURE2D_DESC DeskTexD;
+    RtlZeroMemory(&DeskTexD, sizeof(D3D11_TEXTURE2D_DESC));
+    DeskTexD.Width = destRect.right - destRect.left;
+    DeskTexD.Height = destRect.bottom - destRect.top;
+    DeskTexD.MipLevels = 1;
+    DeskTexD.ArraySize = 1;
+    DeskTexD.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    DeskTexD.SampleDesc.Count = 1;
+    DeskTexD.Usage = D3D11_USAGE_DEFAULT;
+    DeskTexD.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    DeskTexD.CPUAccessFlags = 0;
+    DeskTexD.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
 
     *pDestRect = destRect;
-    *pTargetDesc = destFrameDesc;
+    *pTargetDesc = DeskTexD;
     return S_OK;
 }
 
@@ -241,6 +218,84 @@ DUPL_RETURN DxFactory::InitShaders()
     {
         return DUPL_RETURN_ERROR_UNEXPECTED;
     }
+
+    return DUPL_RETURN_SUCCESS;
+}
+DUPL_RETURN DxFactory::DrawFrame()
+{
+    HRESULT hr;
+
+    // Vertices for drawing whole texture
+    VERTEX Vertices[NUMVERTICES] =
+    {
+        {XMFLOAT3(-1.0f, -1.0f, 0), XMFLOAT2(0.0f, 1.0f)},
+        {XMFLOAT3(-1.0f, 1.0f, 0), XMFLOAT2(0.0f, 0.0f)},
+        {XMFLOAT3(1.0f, -1.0f, 0), XMFLOAT2(1.0f, 1.0f)},
+        {XMFLOAT3(1.0f, -1.0f, 0), XMFLOAT2(1.0f, 1.0f)},
+        {XMFLOAT3(-1.0f, 1.0f, 0), XMFLOAT2(0.0f, 0.0f)},
+        {XMFLOAT3(1.0f, 1.0f, 0), XMFLOAT2(1.0f, 0.0f)},
+    };
+
+    D3D11_TEXTURE2D_DESC FrameDesc;
+    m_SharedSurf->GetDesc(&FrameDesc);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderDesc;
+    ShaderDesc.Format = FrameDesc.Format;
+    ShaderDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderDesc.Texture2D.MostDetailedMip = FrameDesc.MipLevels - 1;
+    ShaderDesc.Texture2D.MipLevels = FrameDesc.MipLevels;
+
+    // Create new shader resource view
+    ID3D11ShaderResourceView* ShaderResource = nullptr;
+    hr = m_Device->CreateShaderResourceView(m_SharedSurf, &ShaderDesc, &ShaderResource);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Set resources
+    UINT Stride = sizeof(VERTEX);
+    UINT Offset = 0;
+    FLOAT blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
+    m_DeviceContext->OMSetBlendState(nullptr, blendFactor, 0xffffffff);
+    m_DeviceContext->OMSetRenderTargets(1, &m_RTV, nullptr);
+    m_DeviceContext->VSSetShader(m_VertexShader, nullptr, 0);
+    m_DeviceContext->PSSetShader(m_PixelShader, nullptr, 0);
+    m_DeviceContext->PSSetShaderResources(0, 1, &ShaderResource);
+    m_DeviceContext->PSSetSamplers(0, 1, &m_SamplerLinear);
+    m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3D11_BUFFER_DESC BufferDesc;
+    RtlZeroMemory(&BufferDesc, sizeof(BufferDesc));
+    BufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    BufferDesc.ByteWidth = sizeof(VERTEX) * NUMVERTICES;
+    BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    BufferDesc.CPUAccessFlags = 0;
+    D3D11_SUBRESOURCE_DATA InitData;
+    RtlZeroMemory(&InitData, sizeof(InitData));
+    InitData.pSysMem = Vertices;
+
+    ID3D11Buffer* VertexBuffer = nullptr;
+
+    // Create vertex buffer
+    hr = m_Device->CreateBuffer(&BufferDesc, &InitData, &VertexBuffer);
+    if (FAILED(hr))
+    {
+        ShaderResource->Release();
+        ShaderResource = nullptr;
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+    m_DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
+
+    // Draw textured quad onto render target
+    m_DeviceContext->Draw(NUMVERTICES, 0);
+
+    VertexBuffer->Release();
+    VertexBuffer = nullptr;
+
+    // Release shader resource
+    ShaderResource->Release();
+    ShaderResource = nullptr;
 
     return DUPL_RETURN_SUCCESS;
 }
