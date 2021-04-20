@@ -1,7 +1,7 @@
 #include <Windows.h>
 #include <string>
 #include <vector>
-#include "CommonTypes.h"
+#include "DxFactory.h"
 #include "WICTextureLoader.h"
 
 
@@ -9,6 +9,7 @@
 // Globals
 //
 //OUTPUTMANAGER OutMgr;
+DxFactory OutMgr;
 
 // Below are lists of errors expect from Dxgi API calls when a transition event like mode change, PnpStop, PnpStart
 // desktop switch, TDR or session disconnect/reconnect. In all these cases we want the application to clean up the threads that process
@@ -50,20 +51,23 @@ int wmain(int argc, wchar_t* argv[])
 {
 	std::vector<std::wstring> params(argv, argv + argc);
 
-	if (params.size() < 2)
+	if (params.size() < 1)
 	{
 		wprintf(L"Usage: %s <filepath>\n", params[0].c_str());
 		return 1;
 	}
 
-	ID3D11ShaderResourceView* hpShaderResourceView = NULL;
-	ID3D11Resource* hpResource = NULL;
-	HRESULT hr;
+	DUPL_RETURN Ret = DUPL_RETURN_SUCCESS;
+	Ret = OutMgr.Init();
 
-	hr = DirectX::CreateWICTextureFromFile(nullptr, L"file", &hpResource, &hpShaderResourceView);
+	//ID3D11ShaderResourceView* hpShaderResourceView = NULL;
+	//ID3D11Resource* hpResource = NULL;
+	//HRESULT hr;
 
-	if (FAILED(hr)) {
-		
-	}
+	//hr = DirectX::CreateWICTextureFromFile(nullptr, L"file", &hpResource, &hpShaderResourceView);
+
+	//if (FAILED(hr)) {
+	//	
+	//}
 	return 0;
 }

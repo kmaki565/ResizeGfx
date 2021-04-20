@@ -1,0 +1,246 @@
+#include "DxFactory.h"
+
+DxFactory::DxFactory() : 
+	m_Device(nullptr),
+	m_Factory(nullptr),
+	m_DeviceContext(nullptr),
+	m_RTV(nullptr),
+	m_SamplerLinear(nullptr),
+	m_BlendState(nullptr),
+	m_VertexShader(nullptr),
+	m_PixelShader(nullptr),
+	m_InputLayout(nullptr),
+	m_SharedSurf(nullptr),
+	m_KeyMutex(nullptr)
+{
+}
+
+DxFactory::~DxFactory()
+{
+}
+
+DUPL_RETURN DxFactory::Init() 
+{
+    HRESULT hr;
+
+    // Driver types supported
+    D3D_DRIVER_TYPE DriverTypes[] =
+    {
+        D3D_DRIVER_TYPE_HARDWARE,
+        D3D_DRIVER_TYPE_WARP,
+        D3D_DRIVER_TYPE_REFERENCE,
+    };
+    UINT NumDriverTypes = ARRAYSIZE(DriverTypes);
+
+    // Feature levels supported
+    D3D_FEATURE_LEVEL FeatureLevels[] =
+    {
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+        D3D_FEATURE_LEVEL_9_1
+    };
+    UINT NumFeatureLevels = ARRAYSIZE(FeatureLevels);
+    D3D_FEATURE_LEVEL FeatureLevel;
+
+    // Create device
+    for (UINT DriverTypeIndex = 0; DriverTypeIndex < NumDriverTypes; ++DriverTypeIndex)
+    {
+        hr = D3D11CreateDevice(nullptr, DriverTypes[DriverTypeIndex], nullptr, 0, FeatureLevels, NumFeatureLevels,
+            D3D11_SDK_VERSION, &m_Device, &FeatureLevel, &m_DeviceContext);
+        if (SUCCEEDED(hr))
+        {
+            // Device creation succeeded, no need to loop anymore
+            break;
+        }
+    }
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Get DXGI factory
+    IDXGIDevice* DxgiDevice = nullptr;
+    hr = m_Device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&DxgiDevice));
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    IDXGIAdapter* DxgiAdapter = nullptr;
+    hr = DxgiDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(&DxgiAdapter));
+    DxgiDevice->Release();
+    DxgiDevice = nullptr;
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    hr = DxgiAdapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&m_Factory));
+    DxgiAdapter->Release();
+    DxgiAdapter = nullptr;
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Create target texture
+    D3D11_TEXTURE2D_DESC targetDesc;
+    RECT targetRect;
+    InitializeDesc(&targetDesc, &targetRect);
+    hr = m_Device->CreateTexture2D(&targetDesc, nullptr, &m_SharedSurf);
+
+    // Make new render target view
+    DUPL_RETURN Return = MakeRTV();
+    if (Return != DUPL_RETURN_SUCCESS)
+    {
+        return Return;
+    }
+
+    // Set view port
+    SetViewPort(640, 480);
+
+    // Create the sample state
+    D3D11_SAMPLER_DESC SampDesc;
+    RtlZeroMemory(&SampDesc, sizeof(SampDesc));
+    SampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    SampDesc.MinLOD = 0;
+    SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    hr = m_Device->CreateSamplerState(&SampDesc, &m_SamplerLinear);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Create the blend state
+    D3D11_BLEND_DESC BlendStateDesc;
+    BlendStateDesc.AlphaToCoverageEnable = FALSE;
+    BlendStateDesc.IndependentBlendEnable = FALSE;
+    BlendStateDesc.RenderTarget[0].BlendEnable = TRUE;
+    BlendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    BlendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    BlendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    BlendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    BlendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    BlendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    BlendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    hr = m_Device->CreateBlendState(&BlendStateDesc, &m_BlendState);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Initialize shaders
+    Return = InitShaders();
+    if (Return != DUPL_RETURN_SUCCESS)
+    {
+        return Return;
+    }
+
+
+    return Return;
+
+}
+
+HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect) {
+    UINT monitorWidth = 640;
+    UINT monitorHeight = 480;
+
+    RECT sourceRect;
+    sourceRect.left = 0;
+    sourceRect.right = monitorWidth;
+    sourceRect.top = 0;
+    sourceRect.bottom = monitorHeight;
+
+    RECT destRect = sourceRect;
+
+    D3D11_TEXTURE2D_DESC destFrameDesc;
+    destFrameDesc.Width = destRect.right - destRect.left;
+    destFrameDesc.Height = destRect.bottom - destRect.top;
+    destFrameDesc.Format = DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM;
+    destFrameDesc.ArraySize = 1;
+    destFrameDesc.BindFlags = D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
+    destFrameDesc.MiscFlags = 0;
+    destFrameDesc.SampleDesc.Count = 1;
+    destFrameDesc.SampleDesc.Quality = 0;
+    destFrameDesc.MipLevels = 1;
+    destFrameDesc.CPUAccessFlags = 0;
+    destFrameDesc.Usage = D3D11_USAGE_DEFAULT;
+
+    *pDestRect = destRect;
+    *pTargetDesc = destFrameDesc;
+    return S_OK;
+}
+
+//
+// Reset render target view
+//
+DUPL_RETURN DxFactory::MakeRTV()
+{
+    // Create a render target view
+    HRESULT hr = m_Device->CreateRenderTargetView(m_SharedSurf, nullptr, &m_RTV);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    // Set new render target
+    m_DeviceContext->OMSetRenderTargets(1, &m_RTV, nullptr);
+
+    return DUPL_RETURN_SUCCESS;
+}
+
+//
+// Set new viewport
+//
+void DxFactory::SetViewPort(UINT Width, UINT Height)
+{
+    D3D11_VIEWPORT VP;
+    VP.Width = static_cast<FLOAT>(Width);
+    VP.Height = static_cast<FLOAT>(Height);
+    VP.MinDepth = 0.0f;
+    VP.MaxDepth = 1.0f;
+    VP.TopLeftX = 0;
+    VP.TopLeftY = 0;
+    m_DeviceContext->RSSetViewports(1, &VP);
+}
+//
+// Initialize shaders for drawing to screen
+//
+DUPL_RETURN DxFactory::InitShaders()
+{
+    HRESULT hr;
+
+    UINT Size = ARRAYSIZE(g_VS);
+    hr = m_Device->CreateVertexShader(g_VS, Size, nullptr, &m_VertexShader);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    D3D11_INPUT_ELEMENT_DESC Layout[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    UINT NumElements = ARRAYSIZE(Layout);
+    hr = m_Device->CreateInputLayout(Layout, NumElements, g_VS, Size, &m_InputLayout);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+    m_DeviceContext->IASetInputLayout(m_InputLayout);
+
+    Size = ARRAYSIZE(g_PS);
+    hr = m_Device->CreatePixelShader(g_PS, Size, nullptr, &m_PixelShader);
+    if (FAILED(hr))
+    {
+        return DUPL_RETURN_ERROR_UNEXPECTED;
+    }
+
+    return DUPL_RETURN_SUCCESS;
+}
