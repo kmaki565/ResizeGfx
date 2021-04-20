@@ -46,4 +46,9 @@
     <FxCompile Include="PixelShader.hlsl" />
     <FxCompile Include="VertexShader.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="sample.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

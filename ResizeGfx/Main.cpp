@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include "DxFactory.h"
-#include "WICTextureLoader.h"
 
 
 //
@@ -50,24 +49,22 @@ HRESULT EnumOutputsExpectedErrors[] = {
 int wmain(int argc, wchar_t* argv[])
 {
 	std::vector<std::wstring> params(argv, argv + argc);
+	std::wstring filePath;
 
-	if (params.size() < 1)
+	if (params.size() < 2)
 	{
-		wprintf(L"Usage: %s <filepath>\n", params[0].c_str());
-		return 1;
+		//wprintf(L"Usage: %s <filepath>\n", params[0].c_str());
+		//return 1;
+		filePath = L"sample.png";
 	}
 
-	DUPL_RETURN Ret = DUPL_RETURN_SUCCESS;
+    CoInitialize(NULL);
+
+	DUPL_RETURN Ret;
 	Ret = OutMgr.Init();
+    OutMgr.ReadFile(filePath);
+    OutMgr.DrawFrame();
 
-	//ID3D11ShaderResourceView* hpShaderResourceView = NULL;
-	//ID3D11Resource* hpResource = NULL;
-	//HRESULT hr;
-
-	//hr = DirectX::CreateWICTextureFromFile(nullptr, L"file", &hpResource, &hpShaderResourceView);
-
-	//if (FAILED(hr)) {
-	//	
-	//}
+    CoUninitialize();
 	return 0;
 }

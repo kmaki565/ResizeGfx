@@ -159,6 +159,11 @@
       </ObjectFileOutput>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="sample.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Image>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

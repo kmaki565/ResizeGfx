@@ -11,7 +11,9 @@ DxFactory::DxFactory() :
 	m_PixelShader(nullptr),
 	m_InputLayout(nullptr),
 	m_SharedSurf(nullptr),
-	m_KeyMutex(nullptr)
+	m_KeyMutex(nullptr),
+    m_SrcTexture(nullptr),
+    m_SrcSrv(nullptr)
 {
 }
 
@@ -116,10 +118,7 @@ DUPL_RETURN DxFactory::Init()
         return Return;
     }
 
-    Return = DrawFrame();
-
     return Return;
-
 }
 
 HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect) {
@@ -298,4 +297,9 @@ DUPL_RETURN DxFactory::DrawFrame()
     ShaderResource = nullptr;
 
     return DUPL_RETURN_SUCCESS;
+}
+
+HRESULT DxFactory::ReadFile(const std::wstring& path) 
+{
+    return DirectX::CreateWICTextureFromFile(m_Device, path.c_str(), &m_SrcTexture, &m_SrcSrv);
 }
