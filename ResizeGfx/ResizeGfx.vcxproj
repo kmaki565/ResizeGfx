@@ -121,12 +121,14 @@
     <ClCompile Include="DxFactory.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="OutputManager.cpp" />
+    <ClCompile Include="ScreenGrab.cpp" />
     <ClCompile Include="WICTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonTypes.h" />
     <ClInclude Include="DxFactory.h" />
     <ClInclude Include="OutputManager.h" />
+    <ClInclude Include="ScreenGrab.h" />
     <ClInclude Include="WICTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>

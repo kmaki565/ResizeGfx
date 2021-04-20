@@ -1,4 +1,7 @@
 #include "DxFactory.h"
+#include "ScreenGrab.h"
+#include <wincodec.h>
+
 using namespace DirectX;
 
 DxFactory::DxFactory() : 
@@ -75,7 +78,7 @@ DUPL_RETURN DxFactory::Init()
     }
 
     // Set view port
-    SetViewPort(640, 480);
+    SetViewPort(1920, 1080);
 
     // Create the sample state
     D3D11_SAMPLER_DESC SampDesc;
@@ -122,8 +125,8 @@ DUPL_RETURN DxFactory::Init()
 }
 
 HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect) {
-    UINT monitorWidth = 640;
-    UINT monitorHeight = 480;
+    UINT monitorWidth = 1920;
+    UINT monitorHeight = 1080;
 
     RECT sourceRect;
     sourceRect.left = 0;
@@ -145,7 +148,7 @@ HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_
     DeskTexD.Usage = D3D11_USAGE_DEFAULT;
     DeskTexD.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     DeskTexD.CPUAccessFlags = 0;
-    DeskTexD.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+    DeskTexD.MiscFlags = 0;
 
     *pDestRect = destRect;
     *pTargetDesc = DeskTexD;
@@ -235,23 +238,6 @@ DUPL_RETURN DxFactory::DrawFrame()
         {XMFLOAT3(1.0f, 1.0f, 0), XMFLOAT2(1.0f, 0.0f)},
     };
 
-    D3D11_TEXTURE2D_DESC FrameDesc;
-    m_SharedSurf->GetDesc(&FrameDesc);
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderDesc;
-    ShaderDesc.Format = FrameDesc.Format;
-    ShaderDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    ShaderDesc.Texture2D.MostDetailedMip = FrameDesc.MipLevels - 1;
-    ShaderDesc.Texture2D.MipLevels = FrameDesc.MipLevels;
-
-    // Create new shader resource view
-    ID3D11ShaderResourceView* ShaderResource = nullptr;
-    hr = m_Device->CreateShaderResourceView(m_SharedSurf, &ShaderDesc, &ShaderResource);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
-
     // Set resources
     UINT Stride = sizeof(VERTEX);
     UINT Offset = 0;
@@ -260,7 +246,7 @@ DUPL_RETURN DxFactory::DrawFrame()
     m_DeviceContext->OMSetRenderTargets(1, &m_RTV, nullptr);
     m_DeviceContext->VSSetShader(m_VertexShader, nullptr, 0);
     m_DeviceContext->PSSetShader(m_PixelShader, nullptr, 0);
-    m_DeviceContext->PSSetShaderResources(0, 1, &ShaderResource);
+    m_DeviceContext->PSSetShaderResources(0, 1, &m_SrcSrv);
     m_DeviceContext->PSSetSamplers(0, 1, &m_SamplerLinear);
     m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -280,8 +266,8 @@ DUPL_RETURN DxFactory::DrawFrame()
     hr = m_Device->CreateBuffer(&BufferDesc, &InitData, &VertexBuffer);
     if (FAILED(hr))
     {
-        ShaderResource->Release();
-        ShaderResource = nullptr;
+        m_SrcSrv->Release();
+        m_SrcSrv = nullptr;
         return DUPL_RETURN_ERROR_UNEXPECTED;
     }
     m_DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
@@ -289,12 +275,14 @@ DUPL_RETURN DxFactory::DrawFrame()
     // Draw textured quad onto render target
     m_DeviceContext->Draw(NUMVERTICES, 0);
 
+    hr = DirectX::SaveWICTextureToFile(m_DeviceContext, m_SharedSurf, GUID_ContainerFormatPng, L"out.png");
+
     VertexBuffer->Release();
     VertexBuffer = nullptr;
 
     // Release shader resource
-    ShaderResource->Release();
-    ShaderResource = nullptr;
+    m_SrcSrv->Release();
+    m_SrcSrv = nullptr;
 
     return DUPL_RETURN_SUCCESS;
 }
