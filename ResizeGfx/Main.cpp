@@ -60,8 +60,7 @@ int wmain(int argc, wchar_t* argv[])
 
     CoInitialize(NULL);
 
-	DUPL_RETURN Ret;
-	Ret = OutMgr.Init();
+	OutMgr.Init();
     OutMgr.ReadFile(filePath);
     OutMgr.DrawFrame();
 
