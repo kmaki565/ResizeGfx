@@ -19,6 +19,7 @@ private:
     HRESULT MakeRTV();
     void SetViewPort(SIZE size);
     HRESULT InitShaders();
+    void CleanRefs();
 
     ID3D11Device* m_Device;
     ID3D11DeviceContext* m_DeviceContext;

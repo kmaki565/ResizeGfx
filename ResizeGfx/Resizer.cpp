@@ -22,6 +22,7 @@ Resizer::Resizer() :
 
 Resizer::~Resizer()
 {
+    CleanRefs();
 }
 
 HRESULT Resizer::InitDx()
@@ -250,4 +251,75 @@ HRESULT Resizer::InitShaders()
     RETURN_ON_BAD_HR(hr);
 
     return S_OK;
+}
+//
+// Releases all references
+//
+void Resizer::CleanRefs()
+{
+    if (m_VertexShader)
+    {
+        m_VertexShader->Release();
+        m_VertexShader = nullptr;
+    }
+
+    if (m_PixelShader)
+    {
+        m_PixelShader->Release();
+        m_PixelShader = nullptr;
+    }
+
+    if (m_InputLayout)
+    {
+        m_InputLayout->Release();
+        m_InputLayout = nullptr;
+    }
+
+    if (m_RTV)
+    {
+        m_RTV->Release();
+        m_RTV = nullptr;
+    }
+
+    if (m_SamplerLinear)
+    {
+        m_SamplerLinear->Release();
+        m_SamplerLinear = nullptr;
+    }
+
+    if (m_BlendState)
+    {
+        m_BlendState->Release();
+        m_BlendState = nullptr;
+    }
+
+    if (m_TargetTexture)
+    {
+        m_TargetTexture->Release();
+        m_TargetTexture = nullptr;
+    }
+
+    if (m_SrcTexture)
+    {
+        m_SrcTexture->Release();
+        m_SrcTexture = nullptr;
+    }
+
+    if (m_SrcSrv)
+    {
+        m_SrcSrv->Release();
+        m_SrcSrv = nullptr;
+    }
+
+    if (m_DeviceContext)
+    {
+        m_DeviceContext->Release();
+        m_DeviceContext = nullptr;
+    }
+
+    if (m_Device)
+    {
+        m_Device->Release();
+        m_Device = nullptr;
+    }
 }
