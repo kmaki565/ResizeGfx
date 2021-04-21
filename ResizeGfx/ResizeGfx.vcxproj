@@ -124,15 +124,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DxFactory.cpp" />
+    <ClCompile Include="Resizer.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ScreenGrab.cpp" />
     <ClCompile Include="WICTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonTypes.h" />
-    <ClInclude Include="DxFactory.h" />
+    <ClInclude Include="Resizer.h" />
     <ClInclude Include="ScreenGrab.h" />
+    <ClInclude Include="utilities.h" />
     <ClInclude Include="WICTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>

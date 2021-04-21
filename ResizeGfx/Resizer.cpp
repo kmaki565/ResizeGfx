@@ -1,10 +1,11 @@
-#include "DxFactory.h"
+#include "Resizer.h"
 #include "ScreenGrab.h"
+#include "utilities.h"
 #include <wincodec.h>
 
 using namespace DirectX;
 
-DxFactory::DxFactory() : 
+Resizer::Resizer() : 
 	m_Device(nullptr),
 	m_DeviceContext(nullptr),
 	m_RTV(nullptr),
@@ -20,11 +21,11 @@ DxFactory::DxFactory() :
 {
 }
 
-DxFactory::~DxFactory()
+Resizer::~Resizer()
 {
 }
 
-DUPL_RETURN DxFactory::Init() 
+HRESULT Resizer::Init() 
 {
     HRESULT hr;
 
@@ -59,10 +60,7 @@ DUPL_RETURN DxFactory::Init()
             break;
         }
     }
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
     // Create target texture
     D3D11_TEXTURE2D_DESC targetDesc;
@@ -71,11 +69,8 @@ DUPL_RETURN DxFactory::Init()
     hr = m_Device->CreateTexture2D(&targetDesc, nullptr, &m_SharedSurf);
 
     // Make new render target view
-    DUPL_RETURN Return = MakeRTV();
-    if (Return != DUPL_RETURN_SUCCESS)
-    {
-        return Return;
-    }
+    hr = MakeRTV();
+    RETURN_ON_BAD_HR(hr);
 
     // Set view port
     SetViewPort(1920, 1080);
@@ -91,10 +86,7 @@ DUPL_RETURN DxFactory::Init()
     SampDesc.MinLOD = 0;
     SampDesc.MaxLOD = D3D11_FLOAT32_MAX;
     hr = m_Device->CreateSamplerState(&SampDesc, &m_SamplerLinear);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
     // Create the blend state
     D3D11_BLEND_DESC BlendStateDesc;
@@ -109,22 +101,16 @@ DUPL_RETURN DxFactory::Init()
     BlendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     BlendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     hr = m_Device->CreateBlendState(&BlendStateDesc, &m_BlendState);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
     // Initialize shaders
-    Return = InitShaders();
-    if (Return != DUPL_RETURN_SUCCESS)
-    {
-        return Return;
-    }
+    hr = InitShaders();
+    RETURN_ON_BAD_HR(hr);
 
-    return Return;
+    return S_OK;
 }
 
-HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect) {
+HRESULT Resizer::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect) {
     UINT monitorWidth = 1920;
     UINT monitorHeight = 1080;
 
@@ -158,25 +144,22 @@ HRESULT DxFactory::InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_
 //
 // Reset render target view
 //
-DUPL_RETURN DxFactory::MakeRTV()
+HRESULT Resizer::MakeRTV()
 {
     // Create a render target view
     HRESULT hr = m_Device->CreateRenderTargetView(m_SharedSurf, nullptr, &m_RTV);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
     // Set new render target
     m_DeviceContext->OMSetRenderTargets(1, &m_RTV, nullptr);
 
-    return DUPL_RETURN_SUCCESS;
+    return S_OK;
 }
 
 //
 // Set new viewport
 //
-void DxFactory::SetViewPort(UINT Width, UINT Height)
+void Resizer::SetViewPort(UINT Width, UINT Height)
 {
     D3D11_VIEWPORT VP;
     VP.Width = static_cast<FLOAT>(Width);
@@ -190,16 +173,13 @@ void DxFactory::SetViewPort(UINT Width, UINT Height)
 //
 // Initialize shaders for drawing to screen
 //
-DUPL_RETURN DxFactory::InitShaders()
+HRESULT Resizer::InitShaders()
 {
     HRESULT hr;
 
     UINT Size = ARRAYSIZE(g_VS);
     hr = m_Device->CreateVertexShader(g_VS, Size, nullptr, &m_VertexShader);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
     D3D11_INPUT_ELEMENT_DESC Layout[] =
     {
@@ -208,22 +188,17 @@ DUPL_RETURN DxFactory::InitShaders()
     };
     UINT NumElements = ARRAYSIZE(Layout);
     hr = m_Device->CreateInputLayout(Layout, NumElements, g_VS, Size, &m_InputLayout);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
+
     m_DeviceContext->IASetInputLayout(m_InputLayout);
 
     Size = ARRAYSIZE(g_PS);
     hr = m_Device->CreatePixelShader(g_PS, Size, nullptr, &m_PixelShader);
-    if (FAILED(hr))
-    {
-        return DUPL_RETURN_ERROR_UNEXPECTED;
-    }
+    RETURN_ON_BAD_HR(hr);
 
-    return DUPL_RETURN_SUCCESS;
+    return S_OK;
 }
-DUPL_RETURN DxFactory::DrawFrame()
+HRESULT Resizer::DrawFrame()
 {
     HRESULT hr;
 
@@ -268,7 +243,7 @@ DUPL_RETURN DxFactory::DrawFrame()
     {
         m_SrcSrv->Release();
         m_SrcSrv = nullptr;
-        return DUPL_RETURN_ERROR_UNEXPECTED;
+        return S_FALSE;
     }
     m_DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
 
@@ -284,10 +259,10 @@ DUPL_RETURN DxFactory::DrawFrame()
     m_SrcSrv->Release();
     m_SrcSrv = nullptr;
 
-    return DUPL_RETURN_SUCCESS;
+    return S_OK;
 }
 
-HRESULT DxFactory::ReadFile(const std::wstring& path) 
+HRESULT Resizer::ReadFile(const std::wstring& path) 
 {
     return DirectX::CreateWICTextureFromFile(m_Device, path.c_str(), &m_SrcTexture, &m_SrcSrv);
 }

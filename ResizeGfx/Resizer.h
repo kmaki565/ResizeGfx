@@ -3,20 +3,20 @@
 #include "WICTextureLoader.h"
 #include <string>
 
-class DxFactory
+class Resizer
 {
 public:
-	DxFactory();
-	~DxFactory();
-    DUPL_RETURN Init();
-    DUPL_RETURN DrawFrame();
+	Resizer();
+	~Resizer();
+    HRESULT Init();
+    HRESULT DrawFrame();
     HRESULT ReadFile(const std::wstring& path);
 
 private:
     HRESULT InitializeDesc(_Out_ D3D11_TEXTURE2D_DESC* pTargetDesc, _Out_ RECT* pDestRect);
-    DUPL_RETURN MakeRTV();
+    HRESULT MakeRTV();
     void SetViewPort(UINT Width, UINT Height);
-    DUPL_RETURN InitShaders();
+    HRESULT InitShaders();
 
     ID3D11Device* m_Device;
     ID3D11DeviceContext* m_DeviceContext;

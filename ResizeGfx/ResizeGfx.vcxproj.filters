@@ -21,7 +21,7 @@
     <ClCompile Include="WICTextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DxFactory.cpp">
+    <ClCompile Include="Resizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ScreenGrab.cpp">
@@ -35,10 +35,13 @@
     <ClInclude Include="CommonTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DxFactory.h">
+    <ClInclude Include="Resizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ScreenGrab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
