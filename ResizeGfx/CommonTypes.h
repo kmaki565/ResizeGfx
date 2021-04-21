@@ -19,7 +19,7 @@
 #include "PixelShader.h"
 #include "VertexShader.h"
 
-#define NUMVERTICES 6
+#define NUMVERTICES 4
 
 //
 // Structure that holds D3D resources not directly tied to any one thread

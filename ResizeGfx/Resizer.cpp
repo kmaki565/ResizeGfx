@@ -124,8 +124,6 @@ HRESULT Resizer::Draw()
         {XMFLOAT3(-1.0f, -1.0f, 0), XMFLOAT2(0.0f, 1.0f)},
         {XMFLOAT3(-1.0f, 1.0f, 0), XMFLOAT2(0.0f, 0.0f)},
         {XMFLOAT3(1.0f, -1.0f, 0), XMFLOAT2(1.0f, 1.0f)},
-        {XMFLOAT3(1.0f, -1.0f, 0), XMFLOAT2(1.0f, 1.0f)},
-        {XMFLOAT3(-1.0f, 1.0f, 0), XMFLOAT2(0.0f, 0.0f)},
         {XMFLOAT3(1.0f, 1.0f, 0), XMFLOAT2(1.0f, 0.0f)},
     };
 
@@ -139,7 +137,7 @@ HRESULT Resizer::Draw()
     m_DeviceContext->PSSetShader(m_PixelShader, nullptr, 0);
     m_DeviceContext->PSSetShaderResources(0, 1, &m_SrcSrv);
     m_DeviceContext->PSSetSamplers(0, 1, &m_SamplerLinear);
-    m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
     D3D11_BUFFER_DESC BufferDesc;
     RtlZeroMemory(&BufferDesc, sizeof(BufferDesc));
