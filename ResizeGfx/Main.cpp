@@ -1,26 +1,35 @@
 #include <Windows.h>
 #include <string>
 #include <vector>
+#include <memory>
 #include "Resizer.h"
 
 int wmain(int argc, wchar_t* argv[])
 {
 	std::vector<std::wstring> params(argv, argv + argc);
-	std::wstring filePath;
+	SIZE targetSize = { 1920, 1080 };
 
-	if (params.size() < 2)
+	if (params.size() == 3)
 	{
-		//wprintf(L"Usage: %s <filepath>\n", params[0].c_str());
-		//return 1;
-		filePath = L"sample.png";
+		try
+		{
+			targetSize.cx = std::stoi(argv[1]);
+			targetSize.cy = std::stoi(argv[2]);
+		}
+		catch (const std::exception&)
+		{
+			wprintf(L"Could not convert to int.\n");
+		}
 	}
 
     CoInitialize(NULL);
 
-	Resizer resizer;
-	resizer.Init();
-    resizer.ReadFile(filePath);
-    resizer.DrawFrame();
+	std::unique_ptr<Resizer> pResizer = std::make_unique<Resizer>();
+	pResizer->InitDx();
+	pResizer->Prepare(targetSize);
+    pResizer->ReadFile(L"sample.png");
+    pResizer->Draw();
+	pResizer->SaveFile(L"out.png");
 
     CoUninitialize();
 	return 0;
