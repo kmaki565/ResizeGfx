@@ -188,20 +188,18 @@ HRESULT Resizer::SaveFile(const std::wstring& path)
 HRESULT Resizer::InitializeDesc(_In_ SIZE size, _Out_ D3D11_TEXTURE2D_DESC* pTargetDesc)
 {
     // Create shared texture for the target view
-    D3D11_TEXTURE2D_DESC desc;
-    RtlZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
-    desc.Width = size.cx;
-    desc.Height = size.cy;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    desc.CPUAccessFlags = 0;
-    desc.MiscFlags = 0;
+    RtlZeroMemory(pTargetDesc, sizeof(D3D11_TEXTURE2D_DESC));
+    pTargetDesc->Width = size.cx;
+    pTargetDesc->Height = size.cy;
+    pTargetDesc->MipLevels = 1;
+    pTargetDesc->ArraySize = 1;
+    pTargetDesc->Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    pTargetDesc->SampleDesc.Count = 1;
+    pTargetDesc->Usage = D3D11_USAGE_DEFAULT;
+    pTargetDesc->BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    pTargetDesc->CPUAccessFlags = 0;
+    pTargetDesc->MiscFlags = 0;
 
-    *pTargetDesc = desc;
     return S_OK;
 }
 HRESULT Resizer::MakeRTV()

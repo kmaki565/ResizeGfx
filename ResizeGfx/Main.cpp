@@ -22,7 +22,8 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
-    CoInitialize(NULL);
+	if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+		return -1;
 
 	std::unique_ptr<Resizer> pResizer = std::make_unique<Resizer>();
 	pResizer->InitDx();
